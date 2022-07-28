@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import logo from './logo.svg';
 import QRCode from 'qrcode.react';
-import { readCount, getBalance, setCount } from './api/UseCaver';
+import { readCount, getBalance, setCount, fetchCardsOf } from './api/UseCaver';
 import * as KlipAPI from './api/UseKlip';
 import "bootstrap/dist/css/bootstrap.min.css";
 import './App.css';
 import './market.css';
-import { Alert, Container} from 'react-bootstrap';
+import { Alert, Card, Container} from 'react-bootstrap';
+import { MARKET_CONTRACT_ADDRESS } from './constants';
 
 // 1 Smart Contract: Address of COUNT_CONTRACT (SMCT)
 // 2 caver.js connect with Smart Contract
@@ -30,7 +31,7 @@ function App() {
   // Global Data
   // address
   // NFT
-  const [nfts, setNfts] = useState([]);
+  const [nfts, setNfts] = useState([]); // [{tokenId: '100', tokenUri: 'https://...png'}]
   const [myBalance, setMyBalance] = useState("0");
   const [myAddress, setMyAddress] = useState(DEFAULT_ADDRESS);
 
@@ -43,7 +44,20 @@ function App() {
 
 
   // fetchMarketNFTs
+  const fetchMarketNFTs = async () => {
+    const _nfts = await fetchCardsOf(MARKET_CONTRACT_ADDRESS);
+    setNfts(_nfts);
+  }
   // fetchMyNFTs
+  const fetchMyNFTs = async () => {
+    const _nfts = await fetchCardsOf(myAddress);
+    setNfts(_nfts);
+    // [{tokenId:100;  tokenUri: "https://...."-Img link}]
+    // Function for check: 
+    // + balanceOf(in ra tổng số NFT token hiện có) --> Kết quả: 2 NFTs
+    // + tokenOfOwnerbyIndex (in ra từng NFT token đang có) cách thức nhập: địa chỉ sở hữu, số index của NFT Token (0-->100)
+    // + tokenURI: in ra thông tin của NFT khi nhập TokenID vào
+  }
   // onClickMint
   // onClickMyCard
   // onClickMarketCard
@@ -58,6 +72,7 @@ function App() {
   // getBalance('0x38a5ad41fd7232bBC8c369285059330050C0dabf');
   return (
     <div className="App">
+      {/* 주소(Địa chỉ) - 자금(Số dư) */}
       <div style={{backgroundColor: 'black', padding:10}}>
         <div 
           style={{
@@ -81,6 +96,9 @@ function App() {
         >
           {myBalance}
         </Alert>
+
+        {/* 갤러리(Gallery)-마켓 Market, 내 지갑 Ví của tôi*/}
+        
       </div>
       <Container 
         style={{ 
@@ -92,8 +110,14 @@ function App() {
       >
         <QRCode value={qrvalue} size={256} style={{margin: "auto"}}/>
       </Container>
-      {/* 주소(Địa chỉ) - 자금(Số dư) */}
-      {/* 갤러리(Gallery)-마켓 Market, 내 지갑 Ví của tôi*/}
+      <div className="container" style={{padding: 0, width: "100%"}}>
+          {nfts.map((nft, index) => (
+            <Card.Img className="img-responsive" src={nfts[index].uri} />
+          ))}
+        </div>
+      <button onClick={fetchMyNFTs}>
+        NFT 받기 - Get NFT
+      </button>
       {/* 릴리스 페이지(Page Phát hành) */}
       {/* 탭(Tab) */}
       {/* 모달(Modal) */}
