@@ -1,12 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import logo from "./logo.svg";
 import QRCode from "qrcode.react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faHome, faWallet, faPlus } from "@fortawesome/free-solid-svg-icons";
 import { readCount, getBalance, setCount, fetchCardsOf } from "./api/UseCaver";
 import * as KlipAPI from "./api/UseKlip";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 import "./market.css";
-import { Alert, Button, Card, Container, Form, Nav } from "react-bootstrap";
+import {
+  Alert,
+  Button,
+  Card,
+  Container,
+  Form,
+  Modal,
+  Nav,
+  Row,
+  Col,
+} from "react-bootstrap";
 import { MARKET_CONTRACT_ADDRESS } from "./constants";
 
 // 1 Smart Contract: Address of COUNT_CONTRACT (SMCT)
@@ -41,11 +53,17 @@ function App() {
   // UI
   const [qrvalue, setQrvalue] = useState(DEFAULT_QR_CODE);
   // tab
-  const [tab, setTab] = useState("MINT"); // MARKET, MINT, WALLET
+  const [tab, setTab] = useState("MARKET"); // MARKET, MINT, WALLET
   const [mintImageUrl, setMintImageUrl] = useState("");
-  // mintInput
 
   // Modal
+  const [showModal, setShowModal] = useState(false);
+  const [modalProps, setModalProps] = useState({
+    title: "MODAL",
+    onConfirm: () => {},
+  });
+
+  const rows = nfts.slice(nfts.length / 2);
 
   // fetchMarketNFTs
   const fetchMarketNFTs = async () => {
@@ -54,6 +72,10 @@ function App() {
   };
   // fetchMyNFTs
   const fetchMyNFTs = async () => {
+    if (myAddress === DEFAULT_ADDRESS) {
+      alert("NO ADDRESS");
+      return;
+    }
     const _nfts = await fetchCardsOf(myAddress);
     // const _nfts = await fetchCardsOf(
     //   "0xDA09bECaF24D659896252cd062dC91AbA4Af244b"
@@ -67,7 +89,10 @@ function App() {
   };
   // onClickMint
   const onClickMint = async (uri) => {
-    if (myAddress === DEFAULT_ADDRESS) alert("NO ADDRESS");
+    if (myAddress === DEFAULT_ADDRESS) {
+      alert("NO ADDRESS");
+      return;
+    }
     const randomTokenId = parseInt(Math.random() * 10000000);
     KlipAPI.mintCardWithURI(
       myAddress,
@@ -82,10 +107,24 @@ function App() {
   // onClickMyCard
   const onClickCard = (id) => {
     if (tab === "WALLET") {
-      onClickMyCard(id);
+      // NFT를 마켓에 게시하시겠습니까? : Bạn có muốn đăng NFT lên Market không?
+      setModalProps({
+        title: "NFT를 마켓에 게시하시겠습니까?",
+        onConfirm: () => {
+          onClickMyCard(id);
+        },
+      });
+      setShowModal(true);
     }
     if (tab === "MARKET") {
-      onClickMarketCard(id);
+      // NFT를 구매하시겠습니까? : Bạn có muốn mua NFT không?
+      setModalProps({
+        title: "NFT를 구매하시겠습니까??",
+        onConfirm: () => {
+          onClickMarketCard(id);
+        },
+      });
+      setShowModal(true);
     }
   };
   const onClickMyCard = (tokenId) => {
@@ -101,13 +140,25 @@ function App() {
   };
   // getUserData
   const getUserData = () => {
-    KlipAPI.getAddress(setQrvalue, async (address) => {
-      setMyAddress(address);
-      const _balance = await getBalance(address);
-      setMyBalance(_balance);
+    setModalProps({
+      title: "Klip 지갑을 연동하시겠습니까?", //"Klip 지갑을 연동하시겠습니까?" : Bạn có muốn liên kết ví Klip không?
+      onConfirm: () => {
+        KlipAPI.getAddress(setQrvalue, async (address) => {
+          setMyAddress(address);
+          const _balance = await getBalance(address);
+          setMyBalance(_balance);
+        });
+      },
     });
+    setShowModal(true);
   };
   // getBalance('0x38a5ad41fd7232bBC8c369285059330050C0dabf');
+
+  useEffect(() => {
+    getUserData();
+    fetchMarketNFTs();
+  }, []);
+
   return (
     <div className="App">
       <div style={{ backgroundColor: "black", padding: 10 }}>
@@ -132,36 +183,69 @@ function App() {
             fontSize: 25,
           }}
         >
-          {myBalance}
+          {myAddress !== DEFAULT_ADDRESS ? `${myBalance} KLAY` : "지갑연결하기"}
+          {/*지갑연결하기: Kết nối ví của bạn */}
         </Alert>
-
-        <Container
-          style={{
-            backgroundColor: "white",
-            width: 300,
-            height: 300,
-            padding: 20,
-          }}
-        >
-          <QRCode value={qrvalue} size={256} style={{ margin: "auto" }} />
-        </Container>
+        {qrvalue !== "DEFAULT" ? (
+          <Container
+            style={{
+              backgroundColor: "white",
+              width: 300,
+              height: 300,
+              padding: 20,
+            }}
+          >
+            <QRCode value={qrvalue} size={256} style={{ margin: "auto" }} />
+          </Container>
+        ) : null}
         <br />
         {/* 갤러리(Gallery)-마켓 Market, 내 지갑 Ví của tôi*/}
         {tab === "MARKET" || tab === "WALLET" ? (
           <div className="container" style={{ padding: 0, width: "100%" }}>
-            {nfts.map((nft, index) => (
+            {rows.map((o, rowIndex) => (
+              <Row>
+                <Col style={{ marginRight: 0, paddingRight: 0 }}>
+                  <Card
+                    onClick={() => {
+                      onClickCard(nfts[rowIndex * 2].id);
+                    }}
+                  >
+                    <Card.Img src={nfts[rowIndex * 2].uri} />
+                  </Card>
+                  [{nfts[rowIndex * 2].id}]NFT
+                </Col>
+
+                <Col style={{ marginRight: 0, paddingRight: 0 }}>
+                  {nfts.length > rowIndex * 2 + 1 ? (
+                    <Card
+                      onClick={() => {
+                        onClickCard(nfts[rowIndex * 2 + 1].id);
+                      }}
+                    >
+                      <Card.Img src={nfts[rowIndex * 2 + 1].uri} />
+                    </Card>
+                  ) : null}
+                  {nfts.length > rowIndex * 2 + 1 ? (
+                    <>[{nfts[rowIndex * 2 + 1].id}]NFT</>
+                  ) : null}
+                </Col>
+              </Row>
+            ))}
+            {/* {nfts.map((nft, index) => (
               <Card.Img
-              key = {`imagekey${index}`}
+                key={`imagekey${index}`}
                 onClick={() => {
                   onClickCard(nft.id);
                 }}
                 className="img-responsive"
                 src={nfts[index].uri}
               />
-            ))}
+            ))} */}{" "}
+            {/* YOU CAN REMOVE IT */}
           </div>
         ) : null}
         {/* 릴리스 페이지(Page Phát hành) */}
+        {/* mintInput */}
         {tab === "MINT" ? (
           <div className="container" style={{ padding: 0, width: "100%" }}>
             <Card
@@ -203,10 +287,49 @@ function App() {
           </div>
         ) : null}
       </div>
-
-      <button onClick={fetchMyNFTs}>NFT 받기 - Get NFT</button>
-
+      <br />
+      <br />
+      <br />
+      <br />
       {/* 모달(Modal) */}
+      <Modal
+        centered
+        size="sm"
+        show={showModal}
+        onHide={() => {
+          setShowModal(false);
+        }}
+      >
+        <Modal.Header
+          style={{ border: 0, backgroundColor: "black", opacity: 0.8 }}
+        >
+          <Modal.Title>{modalProps.title}</Modal.Title>
+        </Modal.Header>
+        <Modal.Footer
+          style={{ border: 0, backgroundColor: "black", opacity: 0.8 }}
+        >
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowModal(false);
+            }}
+          >
+            닫기
+          </Button>
+          {/* 닫기: Đóng */}
+          <Button
+            variant="primary"
+            onClick={() => {
+              modalProps.onConfirm();
+              setShowModal(false);
+            }}
+            style={{ backgroundColor: "#810034", borderColor: "#810034" }}
+          >
+            동의
+          </Button>
+          {/* 동의: Đồng ý */}
+        </Modal.Footer>
+      </Modal>
       {/* 탭(Tab) */}
       <nav
         style={{ backgroundColor: "#1b1717", height: 45 }}
@@ -222,7 +345,9 @@ function App() {
               }}
               className="row d-flex flex-column justify-content-center align-items-center"
             >
-              <div>MARKET</div>
+              <div>
+                <FontAwesomeIcon color="white" size="lg" icon={faHome} />
+              </div>
             </div>
 
             <div
@@ -231,7 +356,9 @@ function App() {
               }}
               className="row d-flex flex-column justify-content-center align-items-center"
             >
-              <div>MINT</div>
+              <div>
+                <FontAwesomeIcon color="white" size="lg" icon={faPlus} />
+              </div>
             </div>
 
             <div
@@ -241,7 +368,9 @@ function App() {
               }}
               className="row d-flex flex-column justify-content-center align-items-center"
             >
-              <div>WALLET</div>
+              <div>
+                <FontAwesomeIcon color="white" size="lg" icon={faWallet} />
+              </div>
             </div>
           </div>
         </Nav>
